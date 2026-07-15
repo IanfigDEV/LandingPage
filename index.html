@@ -745,7 +745,7 @@
   }
   typeNextLine();
 
-  // ---------- Formulário de lista de espera ----------
+  // ---------- Formulário de lista de espera (Integrado com Web3Forms) ----------
   const form = document.getElementById('waitlistForm');
   const submitBtn = document.getElementById('submitBtn');
   const formError = document.getElementById('formError');
@@ -755,43 +755,40 @@
   form.addEventListener('submit', async function (e) {
     e.preventDefault();
     formError.style.display = 'none';
-
-    const name = document.getElementById('name').value.trim();
-    const email = document.getElementById('email').value.trim();
-    const whatsapp = document.getElementById('whatsapp').value.trim();
-    const wantsTest = document.getElementById('wantsTest').checked;
-
-    if (!name || !email || !whatsapp || !wantsTest) {
-      formError.style.display = 'block';
-      return;
-    }
-
-    const payload = {
-      name,
-      email,
-      whatsapp,
-      income: document.getElementById('income').value,
-      bank: document.getElementById('bank').value.trim(),
-      wantsTest,
-      source: 'landing-page-waitlist',
-      created_at: new Date().toISOString(),
-    };
-
+    
+    // Mostra estado de carregamento
     submitBtn.classList.add('loading');
     submitBtn.disabled = true;
 
-    try {
-      // Ponto de integração futura com a API real de captura de leads.
-      // Basta apontar para o endpoint correto quando ele estiver disponível.
-      await submitToWaitlistAPI(payload);
+    // Captura os dados do formulário
+    const formData = new FormData(form);
+    const object = Object.fromEntries(formData);
+    const json = JSON.stringify(object);
 
-      form.style.display = 'none';
-      successState.classList.add('visible');
-      if (waitlistIntro) {
-        waitlistIntro.querySelector('.sub').textContent =
-          'Obrigado por confiar na gente. Você está na lista.';
+    try {
+      const response = await fetch("https://api.web3forms.com/submit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: json
+      });
+
+      const jsonResponse = await response.json();
+
+      if (response.status === 200) {
+        // Sucesso: esconde o formulário e exibe o estado de sucesso
+        form.style.display = 'none';
+        successState.classList.add('visible');
+        if (waitlistIntro) {
+            waitlistIntro.querySelector('.sub').textContent = 'Obrigado por confiar na gente. Você está na lista.';
+        }
+      } else {
+        throw new Error(jsonResponse.message);
       }
     } catch (err) {
+      console.error(err);
       formError.textContent = 'Não foi possível enviar seu cadastro agora. Tente novamente em instantes.';
       formError.style.display = 'block';
     } finally {
@@ -799,31 +796,6 @@
       submitBtn.disabled = false;
     }
   });
-
-  /**
-   * Envia os dados do lead para a API de waitlist.
-   * Troque a URL abaixo pelo endpoint real assim que o backend estiver disponível
-   * (ex: POST /api/waitlist). Enquanto isso, simula uma resposta bem-sucedida.
-   */
-  async function submitToWaitlistAPI(payload) {
-    const WAITLIST_ENDPOINT = '/api/waitlist';
-
-    try {
-      const res = await fetch(WAITLIST_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error('Falha no envio.');
-      return await res.json();
-    } catch (err) {
-      // Fallback: sem backend configurado ainda, apenas simula sucesso
-      // para não travar a captação de leads durante a validação.
-      console.warn('[waitlist] Endpoint ainda não configurado, simulando envio local.', payload);
-      await new Promise(resolve => setTimeout(resolve, 900));
-      return { ok: true, simulated: true };
-    }
-  }
 </script>
 
 </body>
